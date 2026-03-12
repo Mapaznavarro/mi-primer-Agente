@@ -1,0 +1,43 @@
+name: Check Jumbo tomato price
+
+on:
+  schedule:
+    # Cada 6 horas (a las 00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # permite hacer commit/push de state.json
+  issues: write     # permite crear/actualizar Issues
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run agent
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Opcional: si quieres "Issue fijo", crea un issue y pon su número:
+          # ISSUE_NUMBER: "1"
+        run: |
+          python agent/check_price.py
+
+      - name: Commit updated state.json (if changed)
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state.json
+          git commit -m "Update state.json"
+          git push
